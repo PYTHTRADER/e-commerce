@@ -1,15 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
 import { useShop } from '../store/ShopContext';
-import { Check, CreditCard, Wallet, AlertCircle, Shield, Loader2 } from 'lucide-react';
+import { Check, CreditCard, Wallet, AlertCircle, Shield, Loader2, Lock, QrCode, MapPin, PlusCircle } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Address } from '../types';
 
 const Checkout = () => {
-  const { cart, cartTotal, appliedCoupon, applyCoupon, removeCoupon, discountAmount, finalTotal, user, placeOrder } = useShop();
+  const { cart, cartTotal, appliedCoupon, applyCoupon, removeCoupon, discountAmount, finalTotal, user, placeOrder, saveUserAddress } = useShop();
   const [couponInput, setCouponInput] = useState('');
   const [couponMsg, setCouponMsg] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('upi');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [shouldSaveAddress, setShouldSaveAddress] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -17,22 +19,79 @@ const Checkout = () => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
+    email: '',
     address: '',
     city: '',
     pincode: '',
     phone: ''
   });
 
-  // Auth Guard
+  // Validation Errors State
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  // Auth Guard & Auto-fill
   useEffect(() => {
     if (!user) {
-      // Redirect to login preserving the return path
       navigate('/login', { state: { from: location } });
+    } else {
+        // Pre-fill email from registered user if not set
+        if (!formData.email) {
+            setFormData(prev => ({ ...prev, email: user.email }));
+        }
     }
   }, [user, navigate, location]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.placeholder.toLowerCase().replace(' ', '')]: e.target.value });
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    // Clear error when user types
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const handleAddressSelect = (addr: Address) => {
+      setFormData({
+          firstName: addr.firstName,
+          lastName: addr.lastName,
+          email: addr.email,
+          address: addr.address,
+          city: addr.city,
+          pincode: addr.pincode,
+          phone: addr.phone
+      });
+      setErrors({});
+      // Uncheck save if selecting an existing one
+      setShouldSaveAddress(false);
+  };
+
+  const validateForm = () => {
+    const newErrors: { [key: string]: string } = {};
+    
+    if (!formData.firstName.trim()) newErrors.firstName = "First name is required";
+    if (!formData.lastName.trim()) newErrors.lastName = "Last name is required";
+    if (!formData.address.trim()) newErrors.address = "Address is required";
+    if (!formData.city.trim()) newErrors.city = "City is required";
+    
+    // Email Validation
+    if (!formData.email.trim()) {
+        newErrors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        newErrors.email = "Enter a valid email address";
+    }
+
+    // 6-digit Pincode Validation
+    if (!/^\d{6}$/.test(formData.pincode)) {
+      newErrors.pincode = "Enter valid 6-digit pincode";
+    }
+
+    // 10-digit Phone Validation
+    if (!/^\d{10}$/.test(formData.phone)) {
+      newErrors.phone = "Enter valid 10-digit mobile number";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleApplyCoupon = (e: React.FormEvent) => {
@@ -42,10 +101,37 @@ const Checkout = () => {
   };
 
   const handlePlaceOrder = async () => {
+    if (!validateForm()) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+    }
+
     setIsProcessing(true);
     try {
+        // Save address if requested
+        if (shouldSaveAddress) {
+            saveUserAddress({
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                email: formData.email,
+                address: formData.address,
+                city: formData.city,
+                pincode: formData.pincode,
+                phone: formData.phone
+            });
+        }
+
         const orderId = await placeOrder(formData, paymentMethod);
-        navigate('/order-confirmation', { state: { orderId, email: user?.email } });
+        // Navigate with specific email used for the order (might differ from user.email)
+        // Pass paymentMethod and total for the confirmation page logic
+        navigate('/order-confirmation', { 
+            state: { 
+                orderId, 
+                email: formData.email, 
+                paymentMethod,
+                total: finalTotal 
+            } 
+        });
     } catch (error) {
         alert("Failed to place order. Please try again.");
     } finally {
@@ -62,62 +148,208 @@ const Checkout = () => {
     );
   }
 
-  if (!user) return null; // Prevent flicker before redirect
+  if (!user) return null;
 
   return (
     <div className="container mx-auto px-4 py-12 min-h-screen">
-      <h1 className="text-3xl font-bold text-white mb-8 neon-text">Checkout</h1>
+      <div className="flex items-center gap-3 mb-8">
+         <Lock className="w-6 h-6 text-green-500" />
+         <h1 className="text-3xl font-bold text-white neon-text">Secure Checkout</h1>
+      </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Form */}
         <div className="lg:col-span-2 space-y-6">
           
-          {/* Shipping Address */}
+          {/* Saved Addresses */}
+          {user.savedAddresses.length > 0 && (
+            <div className="bg-stone-900 p-6 rounded-2xl shadow-sm border border-stone-800">
+                <h2 className="text-lg font-bold mb-4 text-white flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-orange-500" />
+                    Saved Addresses
+                </h2>
+                <div className="grid md:grid-cols-2 gap-4">
+                    {user.savedAddresses.map((addr) => (
+                        <div 
+                            key={addr.id}
+                            onClick={() => handleAddressSelect(addr)}
+                            className="p-4 rounded-xl border border-stone-800 hover:border-orange-500 bg-stone-950 cursor-pointer transition-all hover:shadow-[0_0_15px_rgba(249,115,22,0.1)] group relative"
+                        >
+                            <h3 className="font-bold text-white group-hover:text-orange-500 transition-colors">{addr.firstName} {addr.lastName}</h3>
+                            <p className="text-sm text-stone-400 mt-1 line-clamp-2">{addr.address}</p>
+                            <p className="text-sm text-stone-500">{addr.city}, {addr.pincode}</p>
+                            <p className="text-xs text-stone-600 mt-2">{addr.phone}</p>
+                            
+                            {/* Selected Indicator - Matches if address matches formData address */}
+                            {formData.address === addr.address && (
+                                <div className="absolute top-2 right-2 bg-green-500 text-white p-1 rounded-full">
+                                    <Check className="w-3 h-3" />
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                    <button 
+                        onClick={() => {
+                            setFormData({ firstName: '', lastName: '', email: user.email, address: '', city: '', pincode: '', phone: '' });
+                            setShouldSaveAddress(true);
+                        }}
+                        className="p-4 rounded-xl border border-stone-800 border-dashed hover:border-stone-600 bg-stone-900/50 flex flex-col items-center justify-center gap-2 text-stone-500 hover:text-stone-300 transition"
+                    >
+                        <PlusCircle className="w-6 h-6" />
+                        <span className="font-semibold text-sm">Add New Address</span>
+                    </button>
+                </div>
+            </div>
+          )}
+
+          {/* Shipping Address Form */}
           <div className="bg-stone-900 p-6 rounded-2xl shadow-sm border border-stone-800">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-white">
+            <h2 className="text-xl font-bold mb-6 flex items-center gap-2 text-white">
               <span className="w-6 h-6 rounded-full bg-orange-600 text-white flex items-center justify-center text-xs shadow-[0_0_10px_rgba(249,115,22,0.4)]">1</span>
-              Shipping Address
+              Contact & Shipping
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input type="text" placeholder="First Name" onChange={(e) => setFormData({...formData, firstName: e.target.value})} className="p-3 bg-stone-950 border border-stone-800 text-white rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none transition" />
-              <input type="text" placeholder="Last Name" onChange={(e) => setFormData({...formData, lastName: e.target.value})} className="p-3 bg-stone-950 border border-stone-800 text-white rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none transition" />
-              <input type="text" placeholder="Address" onChange={(e) => setFormData({...formData, address: e.target.value})} className="md:col-span-2 p-3 bg-stone-950 border border-stone-800 text-white rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none transition" />
-              <input type="text" placeholder="City" onChange={(e) => setFormData({...formData, city: e.target.value})} className="p-3 bg-stone-950 border border-stone-800 text-white rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none transition" />
-              <input type="text" placeholder="Pincode" onChange={(e) => setFormData({...formData, pincode: e.target.value})} className="p-3 bg-stone-950 border border-stone-800 text-white rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none transition" />
-              <input type="tel" placeholder="Phone Number" onChange={(e) => setFormData({...formData, phone: e.target.value})} className="md:col-span-2 p-3 bg-stone-950 border border-stone-800 text-white rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none transition" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* Contact Info Row */}
+              <div className="md:col-span-2 space-y-1">
+                  <input 
+                    type="email" 
+                    name="email"
+                    placeholder="Email Address" 
+                    value={formData.email}
+                    onChange={handleInputChange} 
+                    className={`w-full p-3 bg-stone-950 border ${errors.email ? 'border-red-500' : 'border-stone-800'} text-white rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none transition`} 
+                  />
+                  {errors.email ? <span className="text-xs text-red-500">{errors.email}</span> : <span className="text-xs text-stone-500">Order confirmation will be sent here.</span>}
+              </div>
+
+              <div className="space-y-1">
+                  <input 
+                    type="text" 
+                    name="firstName"
+                    placeholder="First Name" 
+                    value={formData.firstName}
+                    onChange={handleInputChange} 
+                    className={`w-full p-3 bg-stone-950 border ${errors.firstName ? 'border-red-500' : 'border-stone-800'} text-white rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none transition`} 
+                  />
+                  {errors.firstName && <span className="text-xs text-red-500">{errors.firstName}</span>}
+              </div>
+
+              <div className="space-y-1">
+                  <input 
+                    type="text" 
+                    name="lastName"
+                    placeholder="Last Name" 
+                    value={formData.lastName}
+                    onChange={handleInputChange} 
+                    className={`w-full p-3 bg-stone-950 border ${errors.lastName ? 'border-red-500' : 'border-stone-800'} text-white rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none transition`} 
+                  />
+                   {errors.lastName && <span className="text-xs text-red-500">{errors.lastName}</span>}
+              </div>
+
+              <div className="md:col-span-2 space-y-1">
+                  <input 
+                    type="text" 
+                    name="address"
+                    placeholder="Street Address, Apt, Suite" 
+                    value={formData.address}
+                    onChange={handleInputChange} 
+                    className={`w-full p-3 bg-stone-950 border ${errors.address ? 'border-red-500' : 'border-stone-800'} text-white rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none transition`} 
+                  />
+                  {errors.address && <span className="text-xs text-red-500">{errors.address}</span>}
+              </div>
+
+              <div className="space-y-1">
+                  <input 
+                    type="text" 
+                    name="city"
+                    placeholder="City" 
+                    value={formData.city}
+                    onChange={handleInputChange} 
+                    className={`w-full p-3 bg-stone-950 border ${errors.city ? 'border-red-500' : 'border-stone-800'} text-white rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none transition`} 
+                  />
+                  {errors.city && <span className="text-xs text-red-500">{errors.city}</span>}
+              </div>
+
+              <div className="space-y-1">
+                  <input 
+                    type="text" 
+                    name="pincode"
+                    placeholder="Pincode (6 digits)" 
+                    maxLength={6}
+                    value={formData.pincode}
+                    onChange={handleInputChange} 
+                    className={`w-full p-3 bg-stone-950 border ${errors.pincode ? 'border-red-500' : 'border-stone-800'} text-white rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none transition`} 
+                  />
+                  {errors.pincode && <span className="text-xs text-red-500">{errors.pincode}</span>}
+              </div>
+
+              <div className="md:col-span-2 space-y-1">
+                  <input 
+                    type="tel" 
+                    name="phone"
+                    placeholder="Mobile Number (10 digits)" 
+                    maxLength={10}
+                    value={formData.phone}
+                    onChange={handleInputChange} 
+                    className={`w-full p-3 bg-stone-950 border ${errors.phone ? 'border-red-500' : 'border-stone-800'} text-white rounded-lg focus:ring-1 focus:ring-orange-500 focus:border-orange-500 outline-none transition`} 
+                  />
+                  {errors.phone && <span className="text-xs text-red-500">{errors.phone}</span>}
+              </div>
+
+              {/* Save Address Checkbox */}
+              <div className="md:col-span-2">
+                 <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition ${shouldSaveAddress ? 'bg-orange-600 border-orange-600' : 'border-stone-700 bg-stone-950 group-hover:border-stone-500'}`}>
+                        {shouldSaveAddress && <Check className="w-3.5 h-3.5 text-white" />}
+                    </div>
+                    <input 
+                        type="checkbox" 
+                        checked={shouldSaveAddress}
+                        onChange={(e) => setShouldSaveAddress(e.target.checked)}
+                        className="hidden" 
+                    />
+                    <span className="text-sm text-stone-400 group-hover:text-stone-300">Save this address for future orders</span>
+                 </label>
+              </div>
+
             </div>
           </div>
 
           {/* Payment Method */}
           <div className="bg-stone-900 p-6 rounded-2xl shadow-sm border border-stone-800">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-white">
+            <h2 className="text-xl font-bold mb-6 flex items-center gap-2 text-white">
               <span className="w-6 h-6 rounded-full bg-orange-600 text-white flex items-center justify-center text-xs shadow-[0_0_10px_rgba(249,115,22,0.4)]">2</span>
               Payment Method
             </h2>
             <div className="space-y-3">
+              {/* UPI / QR */}
               <label className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition ${paymentMethod === 'upi' ? 'border-orange-500 bg-orange-900/10 shadow-[0_0_15px_rgba(249,115,22,0.1)]' : 'border-stone-800 hover:border-stone-700'}`}>
                 <input type="radio" name="payment" value="upi" checked={paymentMethod === 'upi'} onChange={() => setPaymentMethod('upi')} className="text-orange-600 focus:ring-orange-500" />
                 <div className="flex-1">
-                  <span className="font-semibold block text-white">UPI / GPay / PhonePe</span>
-                  <span className="text-xs text-stone-500">Instant payment, zero fees</span>
+                  <span className="font-semibold block text-white">UPI / QR Code</span>
+                  <span className="text-xs text-stone-500">Pay via GPay, PhonePe, Paytm QR</span>
                 </div>
                 <div className="flex gap-2">
-                  <div className="w-8 h-8 bg-stone-800 rounded"></div>
-                  <div className="w-8 h-8 bg-stone-800 rounded"></div>
+                   <div className="w-8 h-8 bg-stone-800 rounded flex items-center justify-center text-[10px] font-bold text-stone-500">UPI</div>
+                   <QrCode className="w-8 h-8 p-1.5 text-stone-500" />
                 </div>
               </label>
 
-              <label className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition ${paymentMethod === 'card' ? 'border-orange-500 bg-orange-900/10' : 'border-stone-800 hover:border-stone-700'}`}>
-                <input type="radio" name="payment" value="card" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} />
+              {/* Card - Disabled */}
+              <label className="flex items-center gap-4 p-4 rounded-xl border border-stone-800 bg-stone-900/30 opacity-60 cursor-not-allowed relative overflow-hidden group">
+                <div className="absolute top-0 right-0 bg-stone-800 text-stone-500 text-[9px] px-2 py-0.5 rounded-bl-lg font-bold uppercase tracking-wider">Coming Soon</div>
+                <input type="radio" name="payment" value="card" disabled className="text-stone-600" />
                 <div className="flex-1">
-                  <span className="font-semibold block text-white">Credit / Debit Card</span>
-                  <span className="text-xs text-stone-500">Secure via Razorpay</span>
+                  <span className="font-semibold block text-stone-400">Credit / Debit Card</span>
+                  <span className="text-xs text-stone-600 group-hover:text-stone-500 transition">Online Payment Gateway</span>
                 </div>
-                <CreditCard className="w-5 h-5 text-stone-400" />
+                <CreditCard className="w-5 h-5 text-stone-600" />
               </label>
 
+              {/* COD */}
               <label className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition ${paymentMethod === 'cod' ? 'border-orange-500 bg-orange-900/10' : 'border-stone-800 hover:border-stone-700'}`}>
-                <input type="radio" name="payment" value="cod" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} />
+                <input type="radio" name="payment" value="cod" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} className="text-orange-600 focus:ring-orange-500" />
                 <div className="flex-1">
                   <span className="font-semibold block text-white">Cash on Delivery</span>
                   <span className="text-xs text-stone-500">+₹50 handling fee</span>
@@ -206,7 +438,7 @@ const Checkout = () => {
             </button>
             
             <p className="text-xs text-center text-stone-500 mt-4 flex justify-center items-center gap-1">
-               <Shield className="w-3 h-3" /> SSL Encrypted Transaction
+               <Shield className="w-3 h-3 text-green-500" /> 256-Bit SSL Encrypted & Verified
             </p>
           </div>
         </div>

@@ -6,7 +6,12 @@ export const PRODUCTS: Product[] = [
     name: 'Natural Peanut Butter',
     shortDescription: '100% Roasted Peanuts, No Added Sugar.',
     description: 'Experience the pure taste of high-quality peanuts roasted to perfection. Our Natural Peanut Butter is rich in protein, heart-healthy fats, and contains zero added sugar or preservatives. Perfect for fitness enthusiasts.',
-    image: 'https://picsum.photos/id/1080/600/600', // Placeholder
+    image: 'https://images.unsplash.com/photo-1620916297397-a4a5402a3c6c?auto=format&fit=crop&q=80&w=800', // Main Jar
+    images: [
+      'https://images.unsplash.com/photo-1620916297397-a4a5402a3c6c?auto=format&fit=crop&q=80&w=800', // Product Jar
+      'https://images.unsplash.com/photo-1514361892635-6b07e31e75f9?auto=format&fit=crop&q=80&w=800', // Texture/Spoon
+      'https://images.unsplash.com/photo-1555675404-5d519d9b6e68?auto=format&fit=crop&q=80&w=800'  // Lifestyle/Breakfast
+    ],
     rating: 4.8,
     reviewsCount: 1240,
     tags: ['Best Seller', 'Vegan', 'Keto'],
@@ -21,6 +26,11 @@ export const PRODUCTS: Product[] = [
     shortDescription: 'Decadent chocolate swirl with crunch.',
     description: 'A guilt-free dessert replacement. Premium cocoa blended with our signature roasted peanuts. High protein meets high taste. Kids love it, adults crave it.',
     image: 'https://picsum.photos/id/835/600/600', // Placeholder
+    images: [
+      'https://picsum.photos/id/835/600/600',
+      'https://picsum.photos/id/425/600/600',
+      'https://picsum.photos/id/312/600/600'
+    ],
     rating: 4.9,
     reviewsCount: 856,
     tags: ['New Arrival', 'Sweet', 'Kids Favorite'],
@@ -35,6 +45,11 @@ export const PRODUCTS: Product[] = [
     shortDescription: 'Sweetened with organic honey.',
     description: 'The perfect balance of sweet and savory. Roasted with organic honey for a caramelized crunch that adds texture to your morning toast or smoothie bowls.',
     image: 'https://picsum.photos/id/493/600/600', // Placeholder
+    images: [
+      'https://picsum.photos/id/493/600/600',
+      'https://picsum.photos/id/429/600/600',
+      'https://picsum.photos/id/488/600/600'
+    ],
     rating: 4.7,
     reviewsCount: 430,
     tags: ['Organic', 'Crunchy'],

@@ -1,8 +1,8 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { CartItem, Coupon, Product, Variant, User, Order } from '../types';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { CartItem, Coupon, Product, Variant, User, Order, Address } from '../types';
 import { COUPONS, ORDERS as INITIAL_ORDERS } from '../services/mockData';
-import { sendOrderConfirmationEmail } from '../services/api';
+import { createOrder } from '../services/api';
 
 interface ShopContextType {
   cart: CartItem[];
@@ -25,6 +25,7 @@ interface ShopContextType {
   logout: () => void;
   orders: Order[];
   placeOrder: (customerDetails: any, paymentMethod: string) => Promise<string>;
+  saveUserAddress: (address: Omit<Address, 'id'>) => void;
 }
 
 const ShopContext = createContext<ShopContextType | undefined>(undefined);
@@ -35,7 +36,22 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isVideoPlaying, setVideoPlaying] = useState(false);
   const [isCartOpen, setCartOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
+  
+  // Initialize orders from LocalStorage to persist data across reloads
+  const [orders, setOrders] = useState<Order[]>(() => {
+    try {
+      const savedOrders = localStorage.getItem('br_orders');
+      return savedOrders ? JSON.parse(savedOrders) : INITIAL_ORDERS;
+    } catch (e) {
+      console.error("Failed to load orders from storage", e);
+      return INITIAL_ORDERS;
+    }
+  });
+
+  // Persist orders whenever they change
+  useEffect(() => {
+    localStorage.setItem('br_orders', JSON.stringify(orders));
+  }, [orders]);
 
   // Cart Calculation
   const cartTotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
@@ -102,12 +118,29 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const removeCoupon = () => setAppliedCoupon(null);
 
   const login = (email: string) => {
+    // Determine name from email
+    const name = email.split('@')[0];
+    
+    // Simulate finding a user with saved addresses
     setUser({
       id: `u-${Date.now()}`,
-      name: email.split('@')[0],
+      name: name,
       email: email,
       role: 'user',
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
+      savedAddresses: [
+        // Mock saved address for demonstration
+        {
+          id: 'addr-default',
+          firstName: name,
+          lastName: '',
+          email: email,
+          phone: '9876543210',
+          address: '123, Palm Grove Heights, Sector 45',
+          city: 'Gurugram',
+          pincode: '122003'
+        }
+      ]
     });
   };
 
@@ -116,28 +149,44 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setCart([]);
   };
 
+  const saveUserAddress = (address: Omit<Address, 'id'>) => {
+    if (!user) return;
+    
+    const newAddress: Address = {
+      ...address,
+      id: `addr-${Date.now()}`
+    };
+
+    setUser(prev => prev ? ({
+      ...prev,
+      savedAddresses: [...prev.savedAddresses, newAddress]
+    }) : null);
+  };
+
   const placeOrder = async (customerDetails: any, paymentMethod: string) => {
     if (!user) throw new Error("User not authenticated");
 
-    const newOrder: Order = {
-        id: `ORD-${Math.floor(100000 + Math.random() * 900000)}`,
-        customerName: `${customerDetails.firstName} ${customerDetails.lastName}`,
-        total: finalTotal,
-        status: 'Processing',
-        date: new Date().toISOString().split('T')[0],
-        items: [...cart]
-    };
+    try {
+      // Delegate to Backend API Service
+      const newOrder = await createOrder(
+        user,
+        cart,
+        customerDetails,
+        paymentMethod,
+        finalTotal
+      );
 
-    // 1. Save to state (Simulate DB)
-    setOrders(prev => [newOrder, ...prev]);
+      // Update Local State with the persisted order from backend
+      setOrders(prev => [newOrder, ...prev]);
 
-    // 2. Trigger Backend Email Service
-    await sendOrderConfirmationEmail(user.email, newOrder);
+      // Clear Cart on success
+      clearCart();
 
-    // 3. Clear Cart
-    clearCart();
-
-    return newOrder.id;
+      return newOrder.id;
+    } catch (error) {
+      console.error("Failed to place order:", error);
+      throw error;
+    }
   };
 
   return (
@@ -146,7 +195,7 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       cartTotal, appliedCoupon, applyCoupon, removeCoupon, discountAmount, finalTotal,
       isVideoPlaying, setVideoPlaying, isCartOpen, setCartOpen,
       user, login, logout,
-      orders, placeOrder
+      orders, placeOrder, saveUserAddress
     }}>
       {children}
     </ShopContext.Provider>

@@ -2,11 +2,12 @@
 import React, { useState } from 'react';
 import { useShop } from '../store/ShopContext';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, User, Loader2, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, ArrowRight, User, Loader2, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const { login } = useShop();
@@ -15,21 +16,47 @@ const Login = () => {
 
   const from = location.state?.from?.pathname || "/";
 
+  const validateEmail = (email: string) => {
+    // Strict email regex: non-whitespace + @ + non-whitespace + . + non-whitespace
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email && password) {
-      setIsLoading(true);
-      // Simulate secure network request
-      setTimeout(() => {
-        setIsLoading(false);
-        setIsSuccess(true);
-        // Delay redirect to show success state
-        setTimeout(() => {
-            login(email);
-            navigate(from, { replace: true });
-        }, 1000);
-      }, 1500);
+    setError('');
+
+    // 1. Validate Email Format
+    if (!email.trim()) {
+      setError('Email address is required.');
+      return;
     }
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address (e.g., name@domain.com).');
+      return;
+    }
+
+    // 2. Validate Password Length
+    if (!password) {
+      setError('Password is required.');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    // 3. Proceed with Login
+    setIsLoading(true);
+    // Simulate secure network request
+    setTimeout(() => {
+      setIsLoading(false);
+      setIsSuccess(true);
+      // Delay redirect to show success state
+      setTimeout(() => {
+          login(email);
+          navigate(from, { replace: true });
+      }, 1000);
+    }, 1500);
   };
 
   return (
@@ -45,7 +72,7 @@ const Login = () => {
                         <User className="w-8 h-8 text-orange-500" />
                     </div>
                 </div>
-                <h1 className="text-3xl font-bold text-white mb-2 neon-text">Welcome Back</h1>
+                <h1 className="text-3xl font-bold text-white mb-2 neon-text">Welcome Back to Body Revival BR</h1>
                 <p className="text-stone-400">Enter the elite circle.</p>
             </div>
 
@@ -57,15 +84,24 @@ const Login = () => {
                 </div>
             ) : (
                 <form onSubmit={handleSubmit} className="space-y-6">
+                    {error && (
+                        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-start gap-3 text-red-400 text-sm animate-in slide-in-from-top-2">
+                            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                            <span>{error}</span>
+                        </div>
+                    )}
+
                     <div className="space-y-2">
                         <label className="text-xs font-bold text-stone-500 uppercase tracking-wider ml-1">Email</label>
                         <div className="relative group">
                             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-500 group-focus-within:text-orange-500 transition" />
                             <input 
                                 type="email" 
-                                required
                                 value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                onChange={(e) => {
+                                    setEmail(e.target.value);
+                                    if(error) setError('');
+                                }}
                                 className="w-full bg-stone-950 border border-stone-800 text-white pl-12 pr-4 py-3 rounded-xl focus:outline-none focus:border-orange-500 focus:shadow-[0_0_15px_rgba(249,115,22,0.2)] transition-all"
                                 placeholder="athlete@example.com"
                                 disabled={isLoading}
@@ -79,9 +115,11 @@ const Login = () => {
                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-500 group-focus-within:text-orange-500 transition" />
                             <input 
                                 type="password" 
-                                required
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onChange={(e) => {
+                                    setPassword(e.target.value);
+                                    if(error) setError('');
+                                }}
                                 className="w-full bg-stone-950 border border-stone-800 text-white pl-12 pr-4 py-3 rounded-xl focus:outline-none focus:border-orange-500 focus:shadow-[0_0_15px_rgba(249,115,22,0.2)] transition-all"
                                 placeholder="••••••••"
                                 disabled={isLoading}

@@ -10,6 +10,7 @@ export interface Product {
   description: string;
   shortDescription: string;
   image: string;
+  images?: string[]; // Added support for multiple gallery images
   rating: number;
   reviewsCount: number;
   variants: Variant[];
@@ -53,10 +54,22 @@ export interface Order {
   items: CartItem[];
 }
 
+export interface Address {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  pincode: string;
+}
+
 export interface User {
   id: string;
   name: string;
   email: string;
   role: 'user' | 'admin';
   avatar?: string;
+  savedAddresses: Address[];
 }

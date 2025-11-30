@@ -10,9 +10,14 @@ const ProductDetail = () => {
   const product = PRODUCTS.find(p => p.id === id) || PRODUCTS[0]; // Fallback to first if not found
   const { addToCart } = useShop();
 
-  const [selectedVariant, setSelectedVariant] = useState<Variant>(product.variants[1]); // Default to 1kg usually better value
+  const [selectedVariant, setSelectedVariant] = useState<Variant>(product.variants[1] || product.variants[0]); 
   const [qty, setQty] = useState(1);
   const [activeImage, setActiveImage] = useState(product.image);
+
+  // Determine which images to show in gallery
+  const galleryImages = product.images && product.images.length > 0 
+    ? product.images 
+    : [product.image, "https://picsum.photos/id/102/600/600", "https://picsum.photos/id/106/600/600"];
 
   return (
     <div className="container mx-auto px-4 py-12">
@@ -20,7 +25,7 @@ const ProductDetail = () => {
         {/* Left: Images */}
         <div className="space-y-4">
           <div className="relative aspect-square bg-stone-900 rounded-[2.5rem] overflow-hidden group border border-stone-800">
-            <img src={activeImage} alt={product.name} className="w-full h-full object-cover" />
+            <img src={activeImage} alt={product.name} className="w-full h-full object-cover transition-all duration-500" />
             <div className="absolute top-6 right-6">
                <button className="bg-stone-900/80 backdrop-blur p-3 rounded-full hover:bg-black transition text-stone-300 border border-stone-700" title="360 View">
                  <RotateCw className="w-6 h-6" />
@@ -31,14 +36,14 @@ const ProductDetail = () => {
                High Protein
             </div>
           </div>
-          <div className="flex gap-4 overflow-x-auto pb-2">
-            {[product.image, "https://picsum.photos/id/102/600/600", "https://picsum.photos/id/106/600/600"].map((img, idx) => (
+          <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
+            {galleryImages.map((img, idx) => (
               <button 
                 key={idx}
                 onClick={() => setActiveImage(img)}
-                className={`w-24 h-24 rounded-2xl overflow-hidden border-2 transition ${activeImage === img ? 'border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.4)]' : 'border-stone-800'}`}
+                className={`flex-shrink-0 w-24 h-24 rounded-2xl overflow-hidden border-2 transition ${activeImage === img ? 'border-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.4)]' : 'border-stone-800 opacity-70 hover:opacity-100'}`}
               >
-                <img src={img} alt="" className="w-full h-full object-cover" />
+                <img src={img} alt={`View ${idx + 1}`} className="w-full h-full object-cover" />
               </button>
             ))}
           </div>

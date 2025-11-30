@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ArrowRight, Truck, ShieldCheck, Award } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -7,29 +8,30 @@ import { PRODUCTS } from '../services/mockData';
 import { Product } from '../types';
 
 const ProductCard: React.FC<{ product: Product }> = ({ product }) => (
-  <Link to={`/product/${product.id}`} className="group block">
-    <div className="relative overflow-hidden rounded-3xl bg-stone-900 shadow-lg hover:shadow-[0_0_25px_rgba(249,115,22,0.15)] transition-all duration-500 border border-stone-800 hover:border-orange-500/50">
+  <Link to={`/product/${product.id}`} className="group block h-full">
+    <div className="relative h-full overflow-hidden rounded-3xl bg-gradient-to-b from-stone-900 to-stone-950 border border-stone-800 border-t-stone-700 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] hover:shadow-[0_20px_40px_-10px_rgba(249,115,22,0.25)] hover:border-orange-500/50 transition-all duration-500 hover:-translate-y-2 flex flex-col">
       <div className="aspect-square bg-stone-800 overflow-hidden relative">
+        <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 to-transparent z-10 opacity-60"></div>
         <img 
           src={product.image} 
           alt={product.name} 
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-90 group-hover:opacity-100" 
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-90 group-hover:opacity-100 relative z-0" 
         />
         {product.tags.includes('Best Seller') && (
-          <span className="absolute top-4 left-4 bg-orange-600 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg shadow-orange-600/40">
+          <span className="absolute top-4 left-4 z-20 bg-orange-600 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg shadow-orange-600/40">
             Best Seller
           </span>
         )}
       </div>
-      <div className="p-6">
+      <div className="p-6 flex flex-col flex-1 relative z-20">
         <div className="flex justify-between items-start mb-2">
-          <h3 className="font-bold text-lg text-white group-hover:text-orange-500 transition-colors">{product.name}</h3>
+          <h3 className="font-bold text-lg text-white group-hover:text-orange-500 transition-colors drop-shadow-md">{product.name}</h3>
           <span className="font-bold text-orange-400">₹{product.variants[0].price}</span>
         </div>
         <p className="text-sm text-stone-400 mb-4 line-clamp-2">{product.shortDescription}</p>
-        <div className="flex gap-2">
+        <div className="flex gap-2 mt-auto">
           {product.tags.map((tag: string) => (
-            <span key={tag} className="text-[10px] bg-stone-800 border border-stone-700 text-stone-300 px-2 py-1 rounded-md">{tag}</span>
+            <span key={tag} className="text-[10px] bg-stone-800/50 border border-stone-700/50 text-stone-300 px-2 py-1 rounded-md">{tag}</span>
           ))}
         </div>
       </div>
@@ -157,21 +159,21 @@ const Home = () => {
 
       {/* Trust Badges */}
       <section className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8 py-12 border-t border-stone-900 mt-12">
-        <div className="flex items-center gap-4 p-6 bg-stone-900 rounded-2xl border border-stone-800 hover:border-stone-700 transition">
+        <div className="flex items-center gap-4 p-6 bg-stone-900 rounded-2xl border border-stone-800 hover:border-stone-700 transition hover:shadow-[0_0_20px_rgba(249,115,22,0.1)]">
           <div className="bg-stone-800 p-3 rounded-full shadow-sm text-orange-500"><Truck className="w-6 h-6" /></div>
           <div>
             <h4 className="font-bold text-white">Fast Delivery</h4>
             <p className="text-sm text-stone-500">Within 2-3 business days</p>
           </div>
         </div>
-        <div className="flex items-center gap-4 p-6 bg-stone-900 rounded-2xl border border-stone-800 hover:border-stone-700 transition">
+        <div className="flex items-center gap-4 p-6 bg-stone-900 rounded-2xl border border-stone-800 hover:border-stone-700 transition hover:shadow-[0_0_20px_rgba(249,115,22,0.1)]">
           <div className="bg-stone-800 p-3 rounded-full shadow-sm text-orange-500"><ShieldCheck className="w-6 h-6" /></div>
           <div>
             <h4 className="font-bold text-white">Quality Guarantee</h4>
             <p className="text-sm text-stone-500">100% money back guarantee</p>
           </div>
         </div>
-        <div className="flex items-center gap-4 p-6 bg-stone-900 rounded-2xl border border-stone-800 hover:border-stone-700 transition">
+        <div className="flex items-center gap-4 p-6 bg-stone-900 rounded-2xl border border-stone-800 hover:border-stone-700 transition hover:shadow-[0_0_20px_rgba(249,115,22,0.1)]">
           <div className="bg-stone-800 p-3 rounded-full shadow-sm text-orange-500"><Award className="w-6 h-6" /></div>
           <div>
             <h4 className="font-bold text-white">Lab Tested</h4>
